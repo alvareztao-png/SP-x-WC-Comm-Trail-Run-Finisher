@@ -5,8 +5,6 @@
 <title>Finisher Poster Generator</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
 
 <style>
@@ -16,18 +14,18 @@ body {
   text-align: center;
   padding: 20px;
 }
-
 input, button {
   padding: 10px;
   font-size: 16px;
-  margin: 8px;
+  margin: 10px;
   font-family: 'Anton', sans-serif;
 }
-
 canvas {
+  display: none;
   margin-top: 20px;
   max-width: 100%;
-  display: none;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.2);
 }
 </style>
 </head>
@@ -40,81 +38,91 @@ canvas {
 <br>
 <input type="file" id="photoInput" accept="image/*">
 <br>
-<button onclick="generatePoster()">Generate Poster</button>
+<button id="generateBtn">Generate Poster</button>
 
 <canvas id="canvas" width="1080" height="1350"></canvas>
 
 <script>
 let participants = [];
 let template = new Image();
-template.src = "assets/finisher_template.png";
 
-// Load masterlist
 fetch("data/participants.json")
   .then(res => res.json())
   .then(data => participants = data);
 
-// Case-insensitive exact match
+// ✅ UPDATED TEMPLATE NAME
+template.src = "assets/new_template.png";
+
 function findParticipant(name) {
   return participants.find(p =>
-    p.name.trim().toLowerCase() === name.trim().toLowerCase()
-  ) || null;
+    p.name.toLowerCase() === name.toLowerCase()
+  );
 }
 
+document.getElementById("generateBtn").addEventListener("click", generatePoster);
+
 function generatePoster() {
-  const nameInput = document.getElementById("nameInput").value.trim();
-  const photoInput = document.getElementById("photoInput").files[0];
+  const inputName = document.getElementById("nameInput").value.trim();
+  const photoFile = document.getElementById("photoInput").files[0];
+
+  const participant = findParticipant(inputName);
+  const displayName = participant ? participant.name.toUpperCase() : "";
+  const bibNumber = participant ? participant.bib : "";
 
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
   canvas.style.display = "block";
 
-  const match = findParticipant(nameInput);
-  const bib = match ? match.bib : "";
-  const displayName = match ? match.name.toUpperCase() : "";
+  function draw(photoImg = null) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
 
-  template.onload = () => draw();
-
-  if (template.complete) draw();
-
-  function draw() {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.drawImage(template,0,0,canvas.width,canvas.height);
-
+    ctx.fillStyle = "#000000";
     ctx.textAlign = "left";
-    ctx.fillStyle = "#000"; // BLACK TEXT
-
-    // BIB NUMBER
-    if (bib) {
-      ctx.font = "bold 90px 'Anton'";
-      ctx.fillText(`BIB ${bib}`, 80, 430);
-    }
 
     // NAME
     if (displayName) {
-      ctx.font = "bold 70px 'Anton'";
-      ctx.fillText(displayName, 80, 520);
+      ctx.font = "bold 68px 'Anton'";
+      ctx.fillText(displayName, 100, 600);
     }
 
-    // RUNNER IMAGE
-    if (photoInput) {
-      const reader = new FileReader();
-      reader.onload = e => {
-        const img = new Image();
-        img.onload = () => {
-          // LOWERED IMAGE POSITION
-          ctx.drawImage(
-            img,
-            560,   // X
-            520,   // Y (lower than before)
-            420,   // Width
-            520    // Height
-          );
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(photoInput);
+    // BIB NUMBER (number only)
+    if (bibNumber) {
+      ctx.font = "bold 88px 'Anton'";
+      ctx.fillText(bibNumber, 100, 690);
     }
+
+    // ✅ PHOTO — SCALED LARGER
+    if (photoImg) {
+      ctx.drawImage(
+        photoImg,
+        660,  // X (slightly adjusted to keep balance)
+        540,  // Y
+        380,  // Width (larger)
+        500   // Height (larger)
+      );
+    }
+  }
+
+  if (!template.complete) {
+    template.onload = () => loadPhoto(draw);
+  } else {
+    loadPhoto(draw);
+  }
+
+  function loadPhoto(callback) {
+    if (!photoFile) {
+      callback();
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = () => callback(img);
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(photoFile);
   }
 }
 </script>
